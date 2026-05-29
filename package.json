@@ -1,0 +1,15 @@
+{
+  "name": "hack-whois",
+  "version": "2.0.0",
+  "description": "Domain Intelligence Platform — RDAP/WHOIS/DNS/Hosting lookup",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "serve": "npx serve -l 3456 -s .",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "whois": "^2.14.1"
+  }
+}
