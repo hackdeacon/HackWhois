@@ -35,7 +35,7 @@ const IntelClient = (() => {
 
   async function checkApi() {
     try {
-      const resp = await fetch(API_BASE + '?query=test', {
+      const resp = await fetch('/test', {
         method: 'GET',
         signal: AbortSignal.timeout(4000),
       });
@@ -51,11 +51,7 @@ const IntelClient = (() => {
   // ---- Backend ----
 
   async function queryBackend(query) {
-    const resp = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    });
+    const resp = await fetch(`/${encodeURIComponent(query)}`);
     const data = await resp.json();
     if (!data.success) throw new Error(data.error || 'API error');
     return data;

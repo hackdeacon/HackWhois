@@ -1,6 +1,6 @@
 /**
  * Domain Intelligence API — main entry point.
- * RDAP → WHOIS fallback, DNS + HTTP enrichment, unified normalization.
+ * Serves both API (/:query) and static files (SPA catch-all).
  */
 const rdap = require('./lib/providers/rdap');
 const whois = require('./lib/providers/whois');
@@ -9,11 +9,27 @@ const whoisParser = require('./lib/parsers/whois-parser');
 const { enrich } = require('./lib/enricher');
 const { normalize } = require('./lib/normalizer');
 
+const fs = require('fs');
+const path = require('path');
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
+
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+};
+
+const SPA_ROUTES = ['/', '/batch', '/history'];
+const STATIC_EXT = new Set(['.html', '.css', '.js', '.json', '.png', '.svg', '.ico']);
 
 function detectType(query) {
   const q = query.trim();
@@ -23,46 +39,39 @@ function detectType(query) {
   return 'domain';
 }
 
+function isQuery(pathname) {
+  if (SPA_ROUTES.includes(pathname)) return false;
+  if (STATIC_EXT.has(path.extname(pathname))) return false;
+  return /^[\w.\-:]+$/.test(pathname.slice(1));
+}
+
 async function lookupDomain(domain) {
-  // Step 1: RDAP
   const rdapResult = await rdap.queryDomain(domain);
-  let registration;
-  let source;
+  let registration, source;
 
   if (rdapResult.success) {
     registration = rdapParser.parseDomain(rdapResult.data, domain);
     registration.rdap_supported = true;
     source = 'rdap';
   } else {
-    // Step 2: WHOIS fallback
     const whoisResult = await whois.queryDomain(domain);
     if (whoisResult.success) {
       registration = whoisParser.parseDomain(whoisResult.raw, domain);
       registration.rdap_supported = false;
       source = 'whois';
     } else {
-      return {
-        success: false,
-        error: `All lookup methods failed for ${domain}. RDAP: ${rdapResult.error}. WHOIS: ${whoisResult.error}`,
-        query: domain,
-        type: 'domain',
-      };
+      return { success: false, error: `Lookup failed: ${domain}`, query: domain, type: 'domain' };
     }
   }
 
-  // Step 3: DNS + HTTP + SSL enrichment (parallel)
   const { dns, http, ssl } = await enrich(domain);
-
-  // Step 4: Normalize
   const normalized = normalize('domain', registration, dns, http, ssl, source);
-
   return { success: true, type: 'domain', data: normalized };
 }
 
 async function lookupIp(ip) {
   const rdapResult = await rdap.queryIp(ip);
-  let registration;
-  let source;
+  let registration, source;
 
   if (rdapResult.success) {
     registration = rdapParser.parseIp(rdapResult.data, ip);
@@ -73,7 +82,7 @@ async function lookupIp(ip) {
       registration = whoisParser.parseIp(whoisResult.raw, ip);
       source = 'whois';
     } else {
-      return { success: false, error: `Lookup failed for ${ip}`, query: ip, type: 'ip' };
+      return { success: false, error: `Lookup failed: ${ip}`, query: ip, type: 'ip' };
     }
   }
 
@@ -83,8 +92,7 @@ async function lookupIp(ip) {
 
 async function lookupAsn(asn) {
   const rdapResult = await rdap.queryAsn(asn);
-  let registration;
-  let source;
+  let registration, source;
 
   if (rdapResult.success) {
     registration = rdapParser.parseAsn(rdapResult.data, asn);
@@ -95,12 +103,37 @@ async function lookupAsn(asn) {
       registration = whoisParser.parseAsn(whoisResult.raw, asn);
       source = 'whois';
     } else {
-      return { success: false, error: `Lookup failed for ${asn}`, query: asn, type: 'asn' };
+      return { success: false, error: `Lookup failed: ${asn}`, query: asn, type: 'asn' };
     }
   }
 
   const normalized = normalize('asn', registration, null, null, null, source);
   return { success: true, type: 'asn', data: normalized };
+}
+
+function serveStatic(res, pathname) {
+  const filePath = path.join(__dirname, '..', pathname);
+  try {
+    const content = fs.readFileSync(filePath);
+    const mime = MIME[path.extname(pathname)] || 'application/octet-stream';
+    res.writeHead(200, { ...CORS, 'Content-Type': mime });
+    res.end(content);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function serveSPA(res) {
+  const filePath = path.join(__dirname, '..', 'index.html');
+  try {
+    const content = fs.readFileSync(filePath);
+    res.writeHead(200, { ...CORS, 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(content);
+  } catch {
+    res.writeHead(500, { ...CORS, 'Content-Type': 'text/plain' });
+    res.end('Internal Server Error');
+  }
 }
 
 module.exports = async function handler(req, res) {
@@ -109,13 +142,32 @@ module.exports = async function handler(req, res) {
     return res.end();
   }
 
-  const query = req.method === 'POST'
-    ? req.body?.query
-    : req.query?.query;
+  const url = new URL(req.url, 'http://localhost');
+  const pathname = url.pathname;
+
+  // Static files (known extensions only)
+  if (STATIC_EXT.has(path.extname(pathname))) {
+    if (serveStatic(res, pathname)) return;
+  }
+
+  // SPA routes → serve index.html
+  if (SPA_ROUTES.includes(pathname)) {
+    return serveSPA(res);
+  }
+
+  // API: extract query from path or query param or POST body
+  let query;
+  if (isQuery(pathname)) {
+    query = decodeURIComponent(pathname.slice(1));
+  } else if (req.method === 'POST' && req.body?.query) {
+    query = req.body.query;
+  } else {
+    query = url.searchParams.get('query');
+  }
 
   if (!query || !query.trim()) {
     res.writeHead(400, { ...CORS, 'Content-Type': 'application/json' });
-    return res.end(JSON.stringify({ success: false, error: "Missing 'query' parameter" }));
+    return res.end(JSON.stringify({ success: false, error: 'Missing query' }));
   }
 
   const q = query.trim();
@@ -128,7 +180,6 @@ module.exports = async function handler(req, res) {
       case 'asn': result = await lookupAsn(q); break;
       default: result = await lookupDomain(q); break;
     }
-
     const status = result.success ? 200 : 500;
     res.writeHead(status, { ...CORS, 'Content-Type': 'application/json' });
     return res.end(JSON.stringify(result));

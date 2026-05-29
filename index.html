@@ -1,215 +1,182 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="auto">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HackWHOIS — Domain Intelligence Platform</title>
+  <title>HackWhois</title>
+  <link rel="icon" href="https://cdn.simpleicons.org/openjsfoundation/000000" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="https://cdn.simpleicons.org/openjsfoundation/ffffff" media="(prefers-color-scheme: dark)">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Top Navigation -->
-  <nav class="top-nav">
-    <div class="container">
-      <div class="nav-brand">HackWHOIS</div>
-      <div class="nav-links">
-        <a href="#" class="nav-link" data-tab="single" data-i18n="nav.lookup">查询</a>
-        <a href="#" class="nav-link" data-tab="batch" data-i18n="nav.batch">批量</a>
-        <a href="#" class="nav-link" data-tab="history" data-i18n="nav.history">历史</a>
-      </div>
-      <div class="nav-controls">
-        <button class="lang-toggle" id="lang-toggle" data-i18n-aria="theme.system">EN</button>
-        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-          <span class="theme-toggle-icon" id="theme-icon">◐</span>
-        </button>
-        <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu">
-          <span class="nav-hamburger-line"></span>
-          <span class="nav-hamburger-line"></span>
-          <span class="nav-hamburger-line"></span>
+  <!-- ═══ Hero — README-style centered ═══ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <h1 class="hero-headline" data-i18n="hero.headline">HackWhois</h1>
+      <p class="hero-sub" data-i18n="hero.sub">RDAP / WHOIS / DNS / Hosting</p>
+      <div class="install-snippet" id="hero-search">
+        <span class="install-snippet-prefix">*</span>
+        <input type="text" id="hero-input" class="install-snippet-input" data-i18n-placeholder="hero.placeholder" placeholder="google.com / 8.8.8.8 / AS15169" autocomplete="off" spellcheck="false">
+        <button class="install-snippet-go" id="hero-go" aria-label="Lookup">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
       </div>
-    </div>
-  </nav>
-
-  <!-- Mobile Nav Overlay -->
-  <div class="nav-mobile-overlay" id="nav-overlay"></div>
-  <div class="nav-mobile-drawer" id="nav-drawer">
-    <div class="nav-mobile-links">
-      <a href="#" class="nav-mobile-link active" data-tab="single" data-i18n="nav.lookup">查询</a>
-      <a href="#" class="nav-mobile-link" data-tab="batch" data-i18n="nav.batch">批量查询</a>
-      <a href="#" class="nav-mobile-link" data-tab="history" data-i18n="nav.history">查询历史</a>
-    </div>
-  </div>
-
-  <!-- Hero — white canvas, centered, Ollama-style -->
-  <section class="hero-band">
-    <div class="container">
-      <h1 class="hero-headline" data-i18n="hero.headline">域名情报.</h1>
-      <p class="hero-sub" data-i18n="hero.sub">RDAP / WHOIS / DNS / Hosting — 一次查询，全貌掌握。</p>
-
-      <div class="search-card">
-        <div class="search-row">
-          <div class="search-input-wrap">
-            <input type="text" id="query-input" data-i18n-placeholder="hero.placeholder" placeholder="google.com / 8.8.8.8 / AS15169" autocomplete="off" spellcheck="false">
-          </div>
-          <button id="btn-lookup" class="btn-primary" data-i18n="hero.btn">查询</button>
-        </div>
-        <p class="search-hint" data-i18n="hero.hint">输入域名、IP 地址或 ASN 编号</p>
+      <p class="hero-hint" data-i18n="hero.hint">输入域名、IP 地址或 ASN 编号</p>
+      <div class="hero-nav">
+        <a href="/batch" class="hero-nav-link" data-i18n="tab.batch">批量查询</a>
+        <a href="/history" class="hero-nav-link" data-i18n="tab.history">查询历史</a>
       </div>
     </div>
   </section>
 
-  <!-- Content Band -->
-  <section class="content-band">
-    <div class="container">
+  <!-- ═══ Page: Lookup (default) ═══ -->
+  <main id="page-lookup" class="main">
 
-      <!-- Tabs -->
-      <nav class="tabs">
-        <button class="tab active" data-tab="single" data-i18n="tab.single">单条查询</button>
-        <button class="tab" data-tab="batch" data-i18n="tab.batch">批量查询</button>
-        <button class="tab" data-tab="history" data-i18n="tab.history">查询历史</button>
-      </nav>
-
-      <!-- Single Panel -->
-      <div id="panel-single" class="panel active">
-        <div id="loading" class="loading hidden">
-          <div class="spinner"></div>
-          <span data-i18n="loading.text">正在执行情报查询...</span>
-        </div>
-
-        <div id="error-box" class="error-box hidden">
-          <span class="error-icon">!</span>
-          <span id="error-msg"></span>
-        </div>
-
-        <div id="results" class="results hidden">
-          <!-- Title + Actions -->
-          <div class="result-header">
-            <h2 id="result-title"></h2>
-            <div class="result-actions">
-              <button id="btn-copy" class="btn-secondary" data-i18n="action.copy">复制原始数据</button>
-              <button id="btn-export-json" class="btn-secondary" data-i18n="action.exportJson">导出 JSON</button>
-              <button id="btn-export-csv" class="btn-secondary" data-i18n="action.exportCsv">导出 CSV</button>
-            </div>
-          </div>
-
-          <!-- Status Badges -->
-          <div id="status-section" class="section hidden">
-            <h3 class="section-label" data-i18n="section.status">域名状态</h3>
-            <div id="status-badges" class="badge-row"></div>
-          </div>
-
-          <!-- Registration (WHOIS / RDAP) -->
-          <div id="whois-section" class="section">
-            <h3 class="section-label" data-i18n="section.registration">注册信息</h3>
-            <div id="whois-cards" class="cards-grid"></div>
-          </div>
-
-          <!-- DNS Records -->
-          <div id="dns-section" class="section">
-            <h3 class="section-label" data-i18n="section.dns">DNS 记录</h3>
-            <div id="dns-type-tabs" class="dns-type-tabs"></div>
-            <div id="dns-records"></div>
-          </div>
-
-          <!-- Hosting & Infrastructure -->
-          <div id="hosting-section" class="section">
-            <h3 class="section-label" data-i18n="section.hosting">托管与基础设施</h3>
-            <div id="hosting-cards" class="cards-grid"></div>
-          </div>
-
-          <!-- HTTP Info -->
-          <div id="http-section" class="section">
-            <h3 class="section-label" data-i18n="section.http">HTTP 探测</h3>
-            <div id="http-cards" class="cards-grid"></div>
-          </div>
-
-          <!-- SSL Certificate -->
-          <div id="ssl-section" class="section">
-            <h3 class="section-label" data-i18n="section.ssl">SSL 证书</h3>
-            <div id="ssl-cards" class="cards-grid"></div>
-          </div>
-
-          <!-- Raw Output — terminal card -->
-          <details id="raw-section" class="section raw-details">
-            <summary class="section-label" data-i18n="section.raw">原始数据</summary>
-            <div class="terminal-card">
-              <div class="terminal-header">
-                <span class="terminal-dot terminal-dot--red"></span>
-                <span class="terminal-dot terminal-dot--yellow"></span>
-                <span class="terminal-dot terminal-dot--green"></span>
-              </div>
-              <pre id="raw-output" class="raw-output"></pre>
-            </div>
-          </details>
-        </div>
-      </div>
-
-      <!-- Batch Panel -->
-      <div id="panel-batch" class="panel">
-        <div class="card-feature-sage">
-          <textarea id="batch-input" data-i18n-placeholder="batch.placeholder" placeholder="输入多个域名 / IP / ASN，每行一个：&#10;google.com&#10;github.com&#10;8.8.8.8&#10;AS15169" rows="8" spellcheck="false"></textarea>
-          <div class="batch-controls">
-            <label class="file-upload">
-              <input type="file" id="batch-file" accept=".txt,.csv">
-              <span class="btn-secondary" data-i18n="batch.upload">上传文件</span>
-            </label>
-            <button id="btn-batch-start" class="btn-primary" data-i18n="batch.start">开始批量查询</button>
-            <button id="btn-batch-stop" class="btn-ghost hidden" data-i18n="batch.stop">停止</button>
-          </div>
-        </div>
-
-        <div id="batch-progress" class="progress-bar hidden">
-          <div class="progress-track">
-            <div id="progress-fill" class="progress-fill"></div>
-          </div>
-          <span id="progress-text">0 / 0</span>
-        </div>
-
-        <div id="batch-results" class="batch-results hidden">
-          <div class="result-actions" style="margin-bottom:16px">
-            <button id="btn-batch-export-json" class="btn-secondary" data-i18n="batch.exportAllJson">导出全部 JSON</button>
-            <button id="btn-batch-export-csv" class="btn-secondary" data-i18n="batch.exportAllCsv">导出全部 CSV</button>
-          </div>
-          <div class="table-wrap">
-            <table id="batch-table" class="batch-table">
-              <thead>
-                <tr>
-                  <th data-i18n="batch.th.query">查询项</th>
-                  <th data-i18n="batch.th.type">类型</th>
-                  <th data-i18n="batch.th.registrar">注册商 / 组织</th>
-                  <th data-i18n="batch.th.expiration">到期 / 国家</th>
-                  <th data-i18n="batch.th.source">数据源</th>
-                  <th data-i18n="batch.th.action">操作</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- History Panel -->
-      <div id="panel-history" class="panel">
-        <div class="history-controls">
-          <button id="btn-clear-history" class="btn-ghost" data-i18n="history.clear">清空历史</button>
-        </div>
-        <div id="history-list" class="history-list">
-          <div class="empty-state-wrap"><p class="empty-state" data-i18n="empty.noHistory">暂无查询历史。</p></div>
-        </div>
-      </div>
-
+    <!-- Loading -->
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <span data-i18n="loading.text">正在执行情报查询...</span>
     </div>
-  </section>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <span data-i18n="footer.version">HackWHOIS v2.0</span>
-      <span class="footer-sep"></span>
-      <span id="api-mode" data-i18n="footer.detecting">正在检测 API...</span>
+    <!-- Error -->
+    <div id="error-box" class="error-box hidden">
+      <span class="error-icon">!</span>
+      <span id="error-msg"></span>
     </div>
-  </footer>
+
+    <!-- Empty state -->
+    <div id="lookup-empty" class="terminal-card">
+      <div class="terminal-header">
+        <span class="terminal-dot" style="background:var(--c-terminal-red)"></span>
+        <span class="terminal-dot" style="background:var(--c-terminal-yellow)"></span>
+        <span class="terminal-dot" style="background:var(--c-terminal-green)"></span>
+      </div>
+      <div class="terminal-body">
+        <p class="terminal-line"><span class="terminal-prompt">～</span> whois.kiringo.cn/google.com</p>
+        <p class="terminal-line terminal-line--mute" data-i18n="empty.terminalHint">输入域名、IP 或 ASN 开始查询</p>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="results hidden">
+
+      <div class="result-header">
+        <h2 id="result-title" class="result-title"></h2>
+        <div class="result-actions">
+          <button id="btn-copy" class="btn-secondary" data-i18n="action.copy">复制</button>
+          <button id="btn-export-json" class="btn-secondary" data-i18n="action.exportJson">JSON</button>
+          <button id="btn-export-csv" class="btn-secondary" data-i18n="action.exportCsv">CSV</button>
+        </div>
+      </div>
+
+      <div id="status-section" class="result-block hidden">
+        <h3 class="block-label" data-i18n="section.status">域名状态</h3>
+        <div id="status-badges" class="badge-row"></div>
+      </div>
+
+      <div id="whois-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.registration">注册信息</h3>
+        <div id="whois-cards" class="card-grid"></div>
+      </div>
+
+      <div id="dns-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.dns">DNS 记录</h3>
+        <div id="dns-type-tabs" class="pill-tabs"></div>
+        <div id="dns-records"></div>
+      </div>
+
+      <div id="hosting-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.hosting">托管与基础设施</h3>
+        <div id="hosting-cards" class="card-grid"></div>
+      </div>
+
+      <div id="http-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.http">HTTP 探测</h3>
+        <div id="http-cards" class="card-grid"></div>
+      </div>
+
+      <div id="ssl-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.ssl">SSL 证书</h3>
+        <div id="ssl-cards" class="card-grid"></div>
+      </div>
+
+      <div id="raw-section" class="result-block">
+        <h3 class="block-label" data-i18n="section.raw">原始数据</h3>
+        <div class="terminal-card">
+          <div class="terminal-header">
+            <span class="terminal-dot" style="background:var(--c-terminal-red)"></span>
+            <span class="terminal-dot" style="background:var(--c-terminal-yellow)"></span>
+            <span class="terminal-dot" style="background:var(--c-terminal-green)"></span>
+          </div>
+          <pre id="raw-output" class="terminal-pre"></pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Page: Batch ═══ -->
+  <main id="page-batch" class="main hidden">
+    <div class="page-back">
+      <a href="/" class="btn-ghost" data-i18n="nav.back">← 返回</a>
+    </div>
+    <h2 class="section-title" data-i18n="tab.batch">批量查询</h2>
+    <div class="batch-input-area">
+      <textarea id="batch-input" data-i18n-placeholder="batch.placeholder" placeholder="输入多个域名 / IP / ASN，每行一个：&#10;google.com&#10;github.com&#10;8.8.8.8&#10;AS15169" rows="5" spellcheck="false"></textarea>
+      <div class="batch-controls">
+        <label class="file-upload">
+          <input type="file" id="batch-file" accept=".txt,.csv">
+          <span class="btn-secondary" data-i18n="batch.upload">上传</span>
+        </label>
+        <button id="btn-batch-start" class="btn-primary" data-i18n="batch.start">开始查询</button>
+        <button id="btn-batch-stop" class="btn-ghost hidden" data-i18n="batch.stop">停止</button>
+      </div>
+    </div>
+
+    <div id="batch-progress" class="progress hidden">
+      <div class="progress-track"><div id="progress-fill" class="progress-fill"></div></div>
+      <span id="progress-text" class="progress-text">0 / 0</span>
+    </div>
+
+    <div id="batch-results" class="batch-results hidden">
+      <div class="result-actions">
+        <button id="btn-batch-export-json" class="btn-secondary" data-i18n="batch.exportAllJson">导出 JSON</button>
+        <button id="btn-batch-export-csv" class="btn-secondary" data-i18n="batch.exportAllCsv">导出 CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table id="batch-table" class="batch-table">
+          <thead>
+            <tr>
+              <th data-i18n="batch.th.query">查询项</th>
+              <th data-i18n="batch.th.type">类型</th>
+              <th data-i18n="batch.th.registrar">注册商 / 组织</th>
+              <th data-i18n="batch.th.expiration">到期 / 国家</th>
+              <th data-i18n="batch.th.source">数据源</th>
+              <th data-i18n="batch.th.action">操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Page: History ═══ -->
+  <main id="page-history" class="main hidden">
+    <div class="page-back">
+      <a href="/" class="btn-ghost" data-i18n="nav.back">← 返回</a>
+    </div>
+    <div class="section-header">
+      <h2 class="section-title" data-i18n="tab.history">查询历史</h2>
+      <button id="btn-clear-history" class="btn-ghost" data-i18n="history.clear">清空</button>
+    </div>
+    <div id="history-list" class="history-list">
+      <p class="empty-text" data-i18n="empty.noHistory">暂无查询历史。</p>
+    </div>
+  </main>
+
+  <!-- ═══ Lang Toggle (fixed) ═══ -->
+  <button class="lang-toggle" id="lang-toggle">EN</button>
 
   <script src="js/i18n.js"></script>
   <script src="js/intel-client.js"></script>

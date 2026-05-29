@@ -1,238 +1,147 @@
 /**
- * App — main controller for HackWHOIS Domain Intelligence Platform.
+ * App — main controller.
+ * Hero-driven search, History API routing, system theme only.
  */
 (() => {
-  // DOM refs
   const $ = (id) => document.getElementById(id);
-  const queryInput = $('query-input');
-  const btnLookup = $('btn-lookup');
-  const loadingEl = $('loading');
-  const errorBox = $('error-box');
-  const errorMsg = $('error-msg');
-  const resultsEl = $('results');
-  const resultTitle = $('result-title');
-  const apiModeEl = $('api-mode');
-
-  // ── Theme ──
-  const THEME_KEY = 'hackwhois_theme';
-  const themeToggle = $('theme-toggle');
-  const themeIcon = $('theme-icon');
-
-  function getTheme() {
-    return localStorage.getItem(THEME_KEY) || 'auto';
-  }
-
-  function setTheme(theme) {
-    localStorage.setItem(THEME_KEY, theme);
-    document.documentElement.setAttribute('data-theme', theme);
-    updateThemeIcon(theme);
-  }
-
-  function updateThemeIcon(theme) {
-    if (theme === 'dark') themeIcon.textContent = '☀';
-    else if (theme === 'light') themeIcon.textContent = '◐';
-    else themeIcon.textContent = '◐';
-  }
-
-  // Cycle: auto → light → dark → auto
-  themeToggle.addEventListener('click', () => {
-    const current = getTheme();
-    const next = current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto';
-    setTheme(next);
-  });
-
-  // Init theme
-  setTheme(getTheme());
-
-  // Listen for system theme changes when in auto mode
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (getTheme() === 'auto') {
-      // CSS handles it via data-theme="auto", just update icon
-      updateThemeIcon('auto');
-    }
-  });
 
   // ── Language ──
   const langToggle = $('lang-toggle');
-
-  function updateLangButton() {
-    const lang = I18n.getLang();
-    langToggle.textContent = lang === 'zh-CN' ? 'EN' : '中';
-  }
-
+  function updateLangBtn() { langToggle.textContent = I18n.getLang() === 'zh-CN' ? 'EN' : '中'; }
   langToggle.addEventListener('click', () => {
-    const next = I18n.getLang() === 'zh-CN' ? 'en' : 'zh-CN';
-    I18n.setLang(next);
-    updateLangButton();
-    // Re-render dynamic content
-    if (!$('results').classList.contains('hidden')) {
-      // Re-render last lookup if visible (simplified: just update static labels)
-    }
-    // Re-render history if visible
-    const historyPanel = $('panel-history');
-    if (historyPanel.classList.contains('active')) {
-      History.render($('history-list'), historyClickHandler);
-    }
+    I18n.setLang(I18n.getLang() === 'zh-CN' ? 'en' : 'zh-CN');
+    updateLangBtn();
+    if (currentPage === 'history') History.render($('history-list'), historyClickHandler);
   });
-
-  // Init i18n
   I18n.init();
-  updateLangButton();
+  updateLangBtn();
 
-  // ── Mobile nav ──
-  const hamburger = $('nav-hamburger');
-  const overlay = $('nav-overlay');
-  const drawer = $('nav-drawer');
-
-  function openMobileNav() {
-    hamburger.classList.add('open');
-    overlay.classList.add('open');
-    drawer.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
-  function closeMobileNav() {
-    hamburger.classList.remove('open');
-    overlay.classList.remove('open');
-    drawer.classList.remove('open');
-    document.body.style.overflow = '';
-  }
-  function toggleMobileNav() {
-    if (drawer.classList.contains('open')) closeMobileNav();
-    else openMobileNav();
-  }
-
-  hamburger.addEventListener('click', toggleMobileNav);
-  overlay.addEventListener('click', closeMobileNav);
-
-  // Close drawer on swipe-right
-  let touchStartX = 0;
-  drawer.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; }, { passive: true });
-  drawer.addEventListener('touchend', (e) => {
-    if (e.changedTouches[0].clientX - touchStartX > 60) closeMobileNav();
-  }, { passive: true });
-
-  // ── Tab switching ──
-  function historyClickHandler(q) {
-    switchToSingle();
-    queryInput.value = q;
-    doLookup();
-    if (window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }
-
-  function activateTab(tabName) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    const target = document.querySelector(`.tab[data-tab="${tabName}"]`);
-    if (target) target.classList.add('active');
-
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.getElementById(`panel-${tabName}`)?.classList.add('active');
-
-    document.querySelectorAll('.nav-mobile-link').forEach(l => {
-      l.classList.toggle('active', l.dataset.tab === tabName);
-    });
-
-    if (tabName === 'history') {
-      History.render($('history-list'), historyClickHandler);
-    }
-  }
-
-  document.querySelectorAll('.tab, .nav-link[data-tab]').forEach(el => {
-    el.addEventListener('click', (e) => {
+  // ── Keyboard: / to focus search ──
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
       e.preventDefault();
-      activateTab(el.dataset.tab);
-    });
+      $('hero-input').focus();
+    }
+    if (e.key === 'Escape') document.activeElement.blur();
   });
 
-  document.querySelectorAll('.nav-mobile-link').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      activateTab(el.dataset.tab);
-      closeMobileNav();
-    });
-  });
+  // ── Router (History API) ──
+  const routes = {
+    '/':        'page-lookup',
+    '/batch':   'page-batch',
+    '/history': 'page-history',
+  };
+  let currentPage = '/';
 
-  function switchToSingle() {
-    activateTab('single');
+  function route(path) {
+    if (!path || !routes[path]) path = '/';
+    currentPage = path;
+    const pageId = routes[path];
+
+    document.querySelectorAll('.main').forEach(el => el.classList.add('hidden'));
+    const page = document.getElementById(pageId);
+    if (page) page.classList.remove('hidden');
+
+    document.querySelectorAll('.hero-nav-link').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === path);
+    });
+
+    if (path === '/history') History.render($('history-list'), historyClickHandler);
   }
 
-  // Single query
-  btnLookup.addEventListener('click', doLookup);
-  queryInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLookup(); });
+  function navigate(path) {
+    if (path === currentPage) return;
+    history.pushState(null, '', path);
+    route(path);
+    window.scrollTo(0, 0);
+  }
 
-  async function doLookup() {
-    const query = queryInput.value.trim();
-    if (!query) return;
-
-    queryInput.blur();
-    showLoading(true);
-    hideError();
-    hideResults();
-
-    if (window.innerWidth < 768) {
-      document.querySelector('.content-band').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Intercept hero-nav and back links
+  document.addEventListener('click', e => {
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+    const href = link.getAttribute('href');
+    if (routes[href]) {
+      e.preventDefault();
+      navigate(href);
     }
+  });
+
+  window.addEventListener('popstate', () => route(location.pathname));
+  route(location.pathname);
+
+  // ── Search ──
+  const heroInput = $('hero-input');
+  const heroGo = $('hero-go');
+
+  function doLookup(overrideQuery) {
+    const q = overrideQuery || heroInput.value.trim();
+    if (!q) return;
+    heroInput.value = q;
+    if (currentPage !== '/') navigate('/');
+    executeLookup(q);
+  }
+
+  heroGo.addEventListener('click', () => doLookup());
+  heroInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLookup(); });
+
+  // ── Lookup Execution ──
+  async function executeLookup(query) {
+    const loadingEl = $('loading');
+    const errorBox = $('error-box');
+    const errorMsg = $('error-msg');
+    const resultsEl = $('results');
+    const lookupEmpty = $('lookup-empty');
+
+    errorBox.classList.add('hidden');
+    resultsEl.classList.add('hidden');
+    lookupEmpty.classList.add('hidden');
+    loadingEl.classList.remove('hidden');
+    heroGo.disabled = true;
 
     try {
-      const result = await IntelClient.lookup(query);
-      const type = result.type || IntelClient.detectType(query);
-      History.add(query, type, result);
-      showResults(result);
+      const data = await IntelClient.lookup(query);
+      if (!data.success) throw new Error(data.error || 'Lookup failed');
+
+      loadingEl.classList.add('hidden');
+      heroGo.disabled = false;
+      renderResults(data);
+      resultsEl.classList.remove('hidden');
+      History.add(query, data.type || IntelClient.detectType(query), data);
     } catch (err) {
-      showError(err.message);
-    } finally {
-      showLoading(false);
+      loadingEl.classList.add('hidden');
+      heroGo.disabled = false;
+      errorMsg.textContent = err.message;
+      errorBox.classList.remove('hidden');
     }
   }
 
-  function showResults(result) {
-    const data = result.data;
-    const type = result.type || IntelClient.detectType(data?.domain || data?.query);
-    resultsEl.classList.remove('hidden');
+  // ── Render Results ──
+  function renderResults(response) {
+    const data = response.data || response;
+    const type = data.type || IntelClient.detectType(data.domain || data.query || '');
+    const title = data.domain || data.query || data.as_number || '';
 
-    if (window.innerWidth < 768) {
-      setTimeout(() => {
-        resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
+    $('result-title').textContent = title;
 
-    // Title
-    if (type === 'domain') resultTitle.textContent = data.domain || data.query;
-    else if (type === 'ip') resultTitle.textContent = `IP: ${data.query}`;
-    else if (type === 'asn') resultTitle.textContent = `ASN: ${data.as_number || data.query}`;
-
-    // Status badges
     const statusSection = $('status-section');
-    if (type === 'domain' && data.status?.length) {
+    if (data.status?.length) {
       statusSection.classList.remove('hidden');
       Render.statusBadges(data.status, $('status-badges'));
     } else {
       statusSection.classList.add('hidden');
     }
 
-    // Registration cards
     Render.whoisCards(data, $('whois-cards'));
 
-    // DNS (domain only) — grouped by type tabs
     const dnsSection = $('dns-section');
-    const dnsTypeTabs = $('dns-type-tabs');
-    const dnsRecords = $('dns-records');
     if (type === 'domain' && data.dns && Object.keys(data.dns).length) {
       dnsSection.classList.remove('hidden');
-      Render.dnsGrid(data.dns, dnsTypeTabs, dnsRecords);
-    } else if (type === 'domain') {
-      dnsSection.classList.remove('hidden');
-      dnsTypeTabs.innerHTML = '';
-      dnsRecords.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('dns.loading')}</span></div>`;
-      DnsResolver.resolveAll(data.domain || data.query).then(dnsData => {
-        Render.dnsGrid(dnsData, dnsTypeTabs, dnsRecords);
-      });
+      Render.dnsGrid(data.dns, $('dns-type-tabs'), $('dns-records'));
     } else {
       dnsSection.classList.add('hidden');
     }
 
-    // Hosting
     const hostingSection = $('hosting-section');
     if (type === 'domain' && data.hosting) {
       hostingSection.classList.remove('hidden');
@@ -241,7 +150,6 @@
       hostingSection.classList.add('hidden');
     }
 
-    // HTTP
     const httpSection = $('http-section');
     if (type === 'domain' && data.raw?.http) {
       httpSection.classList.remove('hidden');
@@ -250,7 +158,6 @@
       httpSection.classList.add('hidden');
     }
 
-    // SSL
     const sslSection = $('ssl-section');
     if (type === 'domain' && data.ssl) {
       sslSection.classList.remove('hidden');
@@ -259,16 +166,28 @@
       sslSection.classList.add('hidden');
     }
 
-    // Raw
     $('raw-output').textContent = JSON.stringify(data.raw || data, null, 2);
 
-    // Export buttons
-    $('btn-copy').onclick = () => navigator.clipboard.writeText($('raw-output').textContent);
-    $('btn-export-json').onclick = () => Exporter.exportJSON(data, `intel-${data.domain || data.query}-${Exporter.getTimestamp()}.json`);
-    $('btn-export-csv').onclick = () => Exporter.exportCSV(data, `intel-${data.domain || data.query}-${Exporter.getTimestamp()}.csv`);
+    $('btn-copy').onclick = () => {
+      navigator.clipboard.writeText($('raw-output').textContent).then(() => {
+        const btn = $('btn-copy');
+        const orig = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.textContent = orig; }, 1500);
+      });
+    };
+    $('btn-export-json').onclick = () => Exporter.exportJSON(data, `intel-${title}-${Exporter.getTimestamp()}.json`);
+    $('btn-export-csv').onclick = () => Exporter.exportCSV(data, `intel-${title}-${Exporter.getTimestamp()}.csv`);
   }
 
-  // Batch
+  // ── History Click Handler ──
+  function historyClickHandler(q) {
+    heroInput.value = q;
+    navigate('/');
+    doLookup(q);
+  }
+
+  // ── Batch ──
   const batchInput = $('batch-input');
   const btnBatchStart = $('btn-batch-start');
   const btnBatchStop = $('btn-batch-stop');
@@ -277,12 +196,11 @@
 
   btnBatchStart.addEventListener('click', startBatch);
   btnBatchStop.addEventListener('click', () => BatchQuery.stop());
-
-  batchFile.addEventListener('change', (e) => {
+  batchFile.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => { batchInput.value = ev.target.result; };
+    reader.onload = ev => { batchInput.value = ev.target.result; };
     reader.readAsText(file);
   });
 
@@ -301,14 +219,10 @@
     await BatchQuery.start(
       queries,
       (completed, total) => {
-        const pct = Math.round((completed / total) * 100);
-        $('progress-fill').style.width = `${pct}%`;
+        $('progress-fill').style.width = `${Math.round((completed / total) * 100)}%`;
         $('progress-text').textContent = `${completed} / ${total}`;
       },
-      (result, err) => {
-        const row = result || err;
-        renderBatchRow(row);
-      }
+      (result, err) => renderBatchRow(result || err)
     );
 
     btnBatchStart.classList.remove('hidden');
@@ -317,13 +231,13 @@
 
   function renderBatchRow(result) {
     const tr = document.createElement('tr');
-    const data = result.data || {};
+    const d = result.data || {};
     const isError = !result.success;
-    const query = data.domain || data.query || result.query || '—';
+    const query = d.domain || d.query || result.query || '—';
     const type = result.type || IntelClient.detectType(query);
-    const registrar = isError ? '—' : (data.registrar?.name || data.org?.name || '—');
-    const expOrCountry = isError ? '—' : (data.expires_at || data.org?.country || '—');
-    const source = data.source || result.source || '—';
+    const registrar = isError ? '—' : (d.registrar?.name || d.org?.name || '—');
+    const expOrCountry = isError ? '—' : (d.expires_at || d.org?.country || '—');
+    const source = d.source || result.source || '—';
 
     tr.innerHTML = `
       <td title="${Render.escape(query)}">${Render.escape(query)}</td>
@@ -336,18 +250,14 @@
     batchTableBody.appendChild(tr);
   }
 
-  batchTableBody.addEventListener('click', (e) => {
+  batchTableBody.addEventListener('click', e => {
     const btn = e.target.closest('.btn-link');
     if (!btn) return;
-    switchToSingle();
-    queryInput.value = btn.dataset.query;
-    doLookup();
-    if (window.innerWidth < 768) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    heroInput.value = btn.dataset.query;
+    navigate('/');
+    doLookup(btn.dataset.query);
   });
 
-  // Batch export
   $('btn-batch-export-json').addEventListener('click', () => {
     const r = BatchQuery.getResults();
     if (r.length) Exporter.exportJSON(r, `intel-batch-${Exporter.getTimestamp()}.json`);
@@ -357,23 +267,12 @@
     if (r.length) Exporter.exportCSV(r, `intel-batch-${Exporter.getTimestamp()}.csv`);
   });
 
-  // History
+  // ── History ──
   $('btn-clear-history').addEventListener('click', () => {
     History.clear();
     History.render($('history-list'), historyClickHandler);
   });
 
-  // UI helpers
-  function showLoading(show) { loadingEl.classList.toggle('hidden', !show); btnLookup.disabled = show; }
-  function showError(msg) { errorMsg.textContent = msg; errorBox.classList.remove('hidden'); }
-  function hideError() { errorBox.classList.add('hidden'); }
-  function hideResults() { resultsEl.classList.add('hidden'); }
-
-  // Init
-  (async () => {
-    const mode = await IntelClient.checkApi();
-    apiModeEl.textContent = mode === 'server'
-      ? I18n.t('footer.apiServer')
-      : I18n.t('footer.apiPublic');
-  })();
+  // ── Init ──
+  IntelClient.checkApi();
 })();
