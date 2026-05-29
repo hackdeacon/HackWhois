@@ -88,7 +88,7 @@ const Render = (() => {
     gridContainer.innerHTML = '';
 
     if (!dns || !Object.keys(dns).length) {
-      gridContainer.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-steel)">${I18n.t('dns.noData')}</span></div>`;
+      gridContainer.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('dns.noData')}</span></div>`;
       return;
     }
 
@@ -198,7 +198,7 @@ const Render = (() => {
     }
 
     if (!hasData) {
-      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-steel)">${I18n.t('empty.noHosting')}</span></div>`;
+      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('empty.noHosting')}</span></div>`;
     }
   }
 
@@ -225,7 +225,7 @@ const Render = (() => {
   function sslInfo(ssl, container) {
     container.innerHTML = '';
     if (!ssl) {
-      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-steel)">${I18n.t('empty.noSsl')}</span></div>`;
+      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('empty.noSsl')}</span></div>`;
       return;
     }
 

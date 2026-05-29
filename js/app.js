@@ -224,7 +224,7 @@
     } else if (type === 'domain') {
       dnsSection.classList.remove('hidden');
       dnsTypeTabs.innerHTML = '';
-      dnsRecords.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-steel)">${I18n.t('dns.loading')}</span></div>`;
+      dnsRecords.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('dns.loading')}</span></div>`;
       DnsResolver.resolveAll(data.domain || data.query).then(dnsData => {
         Render.dnsGrid(dnsData, dnsTypeTabs, dnsRecords);
       });

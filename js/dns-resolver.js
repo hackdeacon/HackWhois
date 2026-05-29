@@ -85,7 +85,7 @@ const DnsResolver = (() => {
     }
 
     if (allRecords.length === 0) {
-      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-steel)">${I18n.t('dns.noData')}</span></div>`;
+      container.innerHTML = `<div class="dns-record"><span class="dns-value" style="color:var(--c-mute)">${I18n.t('dns.noData')}</span></div>`;
       return;
     }
 

@@ -11,7 +11,7 @@
   <!-- Top Navigation -->
   <nav class="top-nav">
     <div class="container">
-      <div class="nav-brand">Hack<span class="green">WHOIS</span></div>
+      <div class="nav-brand">HackWHOIS</div>
       <div class="nav-links">
         <a href="#" class="nav-link" data-tab="single" data-i18n="nav.lookup">查询</a>
         <a href="#" class="nav-link" data-tab="batch" data-i18n="nav.batch">批量</a>
@@ -41,10 +41,10 @@
     </div>
   </div>
 
-  <!-- Hero Band -->
+  <!-- Hero — white canvas, centered, Ollama-style -->
   <section class="hero-band">
     <div class="container">
-      <h1 class="hero-headline" data-i18n="hero.headline">域名情报<span class="green">.</span></h1>
+      <h1 class="hero-headline" data-i18n="hero.headline">域名情报.</h1>
       <p class="hero-sub" data-i18n="hero.sub">RDAP / WHOIS / DNS / Hosting — 一次查询，全貌掌握。</p>
 
       <div class="search-card">
@@ -52,7 +52,7 @@
           <div class="search-input-wrap">
             <input type="text" id="query-input" data-i18n-placeholder="hero.placeholder" placeholder="google.com / 8.8.8.8 / AS15169" autocomplete="off" spellcheck="false">
           </div>
-          <button id="btn-lookup" class="btn-on-dark" data-i18n="hero.btn">查询</button>
+          <button id="btn-lookup" class="btn-primary" data-i18n="hero.btn">查询</button>
         </div>
         <p class="search-hint" data-i18n="hero.hint">输入域名、IP 地址或 ASN 编号</p>
       </div>
@@ -130,10 +130,17 @@
             <div id="ssl-cards" class="cards-grid"></div>
           </div>
 
-          <!-- Raw Output -->
+          <!-- Raw Output — terminal card -->
           <details id="raw-section" class="section raw-details">
             <summary class="section-label" data-i18n="section.raw">原始数据</summary>
-            <pre id="raw-output" class="raw-output"></pre>
+            <div class="terminal-card">
+              <div class="terminal-header">
+                <span class="terminal-dot terminal-dot--red"></span>
+                <span class="terminal-dot terminal-dot--yellow"></span>
+                <span class="terminal-dot terminal-dot--green"></span>
+              </div>
+              <pre id="raw-output" class="raw-output"></pre>
+            </div>
           </details>
         </div>
       </div>
