@@ -9,7 +9,5 @@
     "serve": "npx serve -l 3456 -s .",
     "deploy": "vercel --prod"
   },
-  "dependencies": {
-    "whois": "^2.14.1"
-  }
+  "dependencies": {}
 }
